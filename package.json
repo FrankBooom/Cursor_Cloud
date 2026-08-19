@@ -1,0 +1,24 @@
+{
+  "name": "cursor-cloud-taskboard",
+  "version": "1.0.0",
+  "description": "A small full-stack task board used to demonstrate the Cloud Agent development environment.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "test": "node --test",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0",
+    "supertest": "^7.0.0"
+  }
+}

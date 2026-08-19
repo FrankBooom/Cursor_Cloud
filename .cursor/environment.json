@@ -1,0 +1,17 @@
+{
+  "name": "Cursor Cloud Task Board",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev-server",
+      "command": "npm run dev",
+      "description": "Runs the task board on port 3000 with auto-reload."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
