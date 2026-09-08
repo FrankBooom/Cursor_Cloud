@@ -14,13 +14,13 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+import pymupdf
 from PIL import Image
 
 
-SRC_PDF_PAGES = [
-    Path("/tmp/pdf_pages/page1_rgb.png"),
-    Path("/tmp/pdf_pages/page2_rgb.png"),
-]
+SRC_PDF = Path("/home/ubuntu/.cursor/projects/workspace/uploads/CHL-C-ROB08___________7df3.pdf")
+if not SRC_PDF.exists():
+    SRC_PDF = Path("/home/ubuntu/.cursor/projects/workspace/uploads/CHL-C-ROB08___________82d0.pdf")
 OUT_DOCX = Path("/workspace/CHL-C-ROB08_工业机器人离线编程.docx")
 JPEG_DIR = Path("/tmp/pdf_pages")
 
@@ -146,40 +146,62 @@ def jpeg_page(src: Path, dest: Path, quality=88) -> Path:
     return dest
 
 
-def add_poster_section(doc, image_path: Path, caption: str):
-    section = doc.add_section()
-    section.page_width = Cm(42.0)  # A3 landscape
+def configure_a3_landscape(section):
+    section.page_width = Cm(42.0)
     section.page_height = Cm(29.7)
-    section.left_margin = Cm(1.2)
-    section.right_margin = Cm(1.2)
-    section.top_margin = Cm(1.2)
-    section.bottom_margin = Cm(1.2)
-    cap = doc.add_paragraph()
-    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    cap.paragraph_format.space_after = Pt(6)
-    r = cap.add_run(caption)
-    set_run_font(r, size=10, color=BLUE)
+    section.left_margin = Cm(0.5)
+    section.right_margin = Cm(0.5)
+    section.top_margin = Cm(0.5)
+    section.bottom_margin = Cm(0.5)
+    section.header_distance = Cm(0.3)
+    section.footer_distance = Cm(0.3)
+
+
+def configure_a4_portrait(section):
+    section.page_width = Cm(21.0)
+    section.page_height = Cm(29.7)
+    section.left_margin = Cm(1.8)
+    section.right_margin = Cm(1.8)
+    section.top_margin = Cm(1.8)
+    section.bottom_margin = Cm(1.8)
+
+
+def add_fullpage_poster(doc, image_path: Path):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
     run = p.add_run()
-    # Fit poster + caption on one A3 landscape page (usable height ~27cm)
-    run.add_picture(str(image_path), height=Cm(24.8))
+    run.add_picture(str(image_path), height=Cm(28.5))
+
+
+def extract_pdf_jpegs(pdf_path: Path):
+    JPEG_DIR.mkdir(parents=True, exist_ok=True)
+    doc = pymupdf.open(pdf_path)
+    jpgs = []
+    for i, page in enumerate(doc, start=1):
+        pix = page.get_pixmap(matrix=pymupdf.Matrix(1, 1), alpha=False)
+        png_path = JPEG_DIR / f"page{i}_rgb.png"
+        pix.save(png_path)
+        jpgs.append(jpeg_page(png_path, JPEG_DIR / f"page{i}.jpg"))
+    return jpgs
 
 
 def build():
-    jpg1 = jpeg_page(SRC_PDF_PAGES[0], JPEG_DIR / "page1.jpg")
-    jpg2 = jpeg_page(SRC_PDF_PAGES[1], JPEG_DIR / "page2.jpg")
+    jpg1, jpg2 = extract_pdf_jpegs(SRC_PDF)
 
     doc = Document()
 
-    # Default (portrait A4) section for title + editable body
-    sec0 = doc.sections[0]
-    sec0.page_width = Cm(21.0)
-    sec0.page_height = Cm(29.7)
-    sec0.left_margin = Cm(1.8)
-    sec0.right_margin = Cm(1.8)
-    sec0.top_margin = Cm(1.8)
-    sec0.bottom_margin = Cm(1.8)
+    # Pages 1-2: 1:1 visual conversion of the scanned poster PDF
+    configure_a3_landscape(doc.sections[0])
+    add_fullpage_poster(doc, jpg1)
+    poster2 = doc.add_section()
+    configure_a3_landscape(poster2)
+    add_fullpage_poster(doc, jpg2)
+
+    # Remaining pages: editable resource list
+    body = doc.add_section()
+    configure_a4_portrait(body)
 
     # styles
     normal = doc.styles["Normal"]
@@ -202,7 +224,7 @@ def build():
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sub.paragraph_format.space_after = Pt(16)
-    r = sub.add_run("课程资源清单（由扫描版 PDF 转换，软件名称统一为 PQArt）")
+    r = sub.add_run("可编辑资源清单（软件名称统一为 PQArt；前两页为原海报版式）")
     set_run_font(r, size=11, color=RGBColor(0x55, 0x55, 0x55))
 
     add_heading(doc, "课程概述", 1)
@@ -334,13 +356,10 @@ def build():
     note = doc.add_paragraph()
     note.paragraph_format.space_before = Pt(16)
     r = note.add_run(
-        "说明：源文件为扫描版海报 PDF（2 页），无可选中文字。本 Word 文档将海报版式还原为可编辑的课程资源清单，"
-        "软件名称统一为 PQArt。文末附原海报页面，便于对照版式。"
+        "说明：源文件为扫描版海报 PDF（2 页），无可选中文字。Word 文档前两页保留原海报版式，"
+        "后续页面为可编辑的课程资源清单，软件名称统一为 PQArt。"
     )
     set_run_font(r, size=10, color=RGBColor(0x66, 0x66, 0x66))
-
-    add_poster_section(doc, jpg1, "附图 1  原海报第 1 页（课程概述与第一至四章资源清单）")
-    add_poster_section(doc, jpg2, "附图 2  原海报第 2 页（第五章资源清单）")
 
     doc.save(OUT_DOCX)
     print(f"Wrote {OUT_DOCX} ({OUT_DOCX.stat().st_size} bytes)")
