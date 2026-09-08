@@ -127,11 +127,16 @@ def add_resource_table(doc, rows):
         cell_text(cells[1], name, size=10, fill=fill)
         cell_text(cells[2], types, size=10, fill=fill, align="center")
 
-    # set preferred widths
     for row in table.rows:
         row.cells[0].width = Cm(5.5)
         row.cells[1].width = Cm(10.5)
         row.cells[2].width = Cm(2.8)
+
+    # Repeat header row on each page
+    tr_pr = table.rows[0]._tr.get_or_add_trPr()
+    tbl_header = OxmlElement("w:tblHeader")
+    tbl_header.set(qn("w:val"), "true")
+    tr_pr.append(tbl_header)
     return table
 
 
@@ -149,14 +154,16 @@ def add_poster_section(doc, image_path: Path, caption: str):
     section.right_margin = Cm(1.2)
     section.top_margin = Cm(1.2)
     section.bottom_margin = Cm(1.2)
+    cap = doc.add_paragraph()
+    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap.paragraph_format.space_after = Pt(6)
+    r = cap.add_run(caption)
+    set_run_font(r, size=10, color=BLUE)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run()
-    run.add_picture(str(image_path), width=Cm(39.4))
-    cap = doc.add_paragraph()
-    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = cap.add_run(caption)
-    set_run_font(r, size=10, color=BLUE)
+    # Fit poster + caption on one A3 landscape page (usable height ~27cm)
+    run.add_picture(str(image_path), height=Cm(24.8))
 
 
 def build():
